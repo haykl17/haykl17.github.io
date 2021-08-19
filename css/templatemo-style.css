@@ -7,7 +7,7 @@ https://templatemo.com/tm-527-sided
 
 
     Primary color         #cc1010
-    Primary bright color  #3399FF
+    Primary bright color  #0f0f0f
     Gray bg               #262626
     Dark Gray bg          #262626
 */
@@ -125,11 +125,11 @@ p {
 }
 
 .tm-text-primary-bright {
-  color: #3399ff;
+  color: #0f0f0f;
 }
 
 .tm-hr-primary-bright {
-  border-color: #3399ff;
+  border-color: #0f0f0f;
 }
 
 .tm-hr-white {
@@ -535,11 +535,11 @@ figure.effect-duke:hover p {
 .btn-secondary {
   background-color: white;
   border-color: white;
-  color: #3399ff;
+  color: #0f0f0f;
 }
 
 .btn-secondary:hover {
-  color: #3399ff;
+  color: #0f0f0f;
   background-color: #c5c7ca;
   border-color: #c5c7ca;
 }
