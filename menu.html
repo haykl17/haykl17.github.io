@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProjectMax — CFG Editor</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=Barlow:wght@300;400&display=swap');
+
+:root {
+  --bg: #07090b;
+  --line: #141c24;
+  --accent: #00d4ff;
+  --accent-dim: #003d4d;
+  --text: #b8ccd8;
+  --muted: #2a3a46;
+  --muted2: #1a2830;
+  --disabled: #1a2530;
+  --disabled-text: #2a3a46;
+  --disabled-border: #1a2530;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Barlow', sans-serif;
+  overflow: hidden;
+}
+
+/* ── Grid lines background ── */
+.grid-bg {
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Vignette */
+.vignette {
+  position: fixed; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 30%, #07090bcc 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Horizontal scan line drift */
+.scanline {
+  position: fixed;
+  left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(0,212,255,0.08), transparent);
+  animation: scan 8s linear infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+@keyframes scan {
+  0%   { top: -2px; opacity: 0; }
+  5%   { opacity: 1; }
+  95%  { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* ── Corner marks ── */
+.corner {
+  position: fixed;
+  width: 24px; height: 24px;
+  border-color: var(--accent);
+  border-style: solid;
+  opacity: 0.3;
+  z-index: 3;
+}
+.corner.tl { top: 20px; left: 20px; border-width: 1px 0 0 1px; }
+.corner.tr { top: 20px; right: 20px; border-width: 1px 1px 0 0; }
+.corner.bl { bottom: 20px; left: 20px; border-width: 0 0 1px 1px; }
+.corner.br { bottom: 20px; right: 20px; border-width: 0 1px 1px 0; }
+
+/* ── Main layout ── */
+.stage {
+  position: relative;
+  z-index: 10;
+  width: 100%; height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+
+/* ── Logo / Title ── */
+.logo-block {
+  text-align: center;
+  margin-bottom: 52px;
+  animation: fadeDown 0.7s cubic-bezier(0.2,0,0,1) both;
+}
+@keyframes fadeDown {
+  from { opacity: 0; transform: translateY(-18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.logo-eyebrow {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 4px;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  opacity: 0.7;
+}
+
+.logo-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(56px, 8vw, 96px);
+  letter-spacing: 6px;
+  color: #fff;
+  line-height: 0.92;
+  /* Subtle chrome effect */
+  background: linear-gradient(180deg, #ffffff 0%, #88aacc 60%, #4488aa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.logo-title .dot { color: var(--accent); -webkit-text-fill-color: var(--accent); }
+
+.logo-subtitle {
+  margin-top: 18px;
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--text);
+  letter-spacing: 1px;
+  opacity: 0.55;
+}
+
+/* ── Button grid ── */
+.btn-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  width: min(900px, 90vw);
+}
+
+/* ── Card button ── */
+.cfg-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 24px 22px 20px;
+  border: 1px solid var(--disabled-border);
+  border-radius: 3px;
+  background: var(--disabled);
+  cursor: not-allowed;
+  overflow: hidden;
+  min-height: 140px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  animation: fadeUp 0.6s cubic-bezier(0.2,0,0,1) both;
+}
+
+.cfg-btn:nth-child(1) { animation-delay: 0.15s; }
+.cfg-btn:nth-child(2) { animation-delay: 0.25s; }
+.cfg-btn:nth-child(3) { animation-delay: 0.35s; }
+.cfg-btn:nth-child(4) { animation-delay: 0.45s; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Active (flight_model) */
+.cfg-btn.active {
+  border-color: var(--accent-dim);
+  background: #05141c;
+  cursor: pointer;
+}
+.cfg-btn.active:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 32px #00d4ff22, inset 0 0 40px #00d4ff08;
+}
+.cfg-btn.active:hover .btn-arrow { opacity: 1; transform: translateX(0); }
+.cfg-btn.active:hover .btn-icon { opacity: 0.6; }
+.cfg-btn.active:hover .btn-name { color: #fff; }
+
+/* Disabled lock icon */
+.cfg-btn.disabled .btn-lock {
+  display: flex;
+}
+
+/* ── Big decorative icon ── */
+.btn-icon {
+  position: absolute;
+  top: 14px; right: 16px;
+  font-size: 36px;
+  opacity: 0.06;
+  transition: opacity 0.2s;
+  line-height: 1;
+  user-select: none;
+  font-family: 'DM Mono', monospace;
+}
+.cfg-btn.disabled .btn-icon {
+  opacity: 0.04;
+}
+
+/* Lock overlay */
+.btn-lock {
+  display: none;
+  position: absolute;
+  top: 14px; right: 16px;
+  align-items: center;
+  gap: 5px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 1px;
+}
+.lock-icon {
+  width: 14px; height: 14px;
+  border: 1px solid var(--muted);
+  border-radius: 2px;
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+.lock-icon::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  width: 8px; height: 7px;
+  border: 1px solid var(--muted);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+}
+
+.btn-tag {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.cfg-btn.active .btn-tag { color: var(--accent); opacity: 0.7; }
+.cfg-btn.disabled .btn-tag { color: var(--muted); opacity: 0.5; }
+
+.btn-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  letter-spacing: 2px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.cfg-btn.active .btn-name { color: #c8e8f0; }
+.cfg-btn.disabled .btn-name { color: var(--disabled-text); }
+
+.btn-desc {
+  margin-top: 6px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  font-weight: 300;
+  line-height: 1.5;
+}
+.cfg-btn.active .btn-desc { color: #3a6070; }
+.cfg-btn.disabled .btn-desc { color: var(--muted); opacity: 0.4; }
+
+.btn-arrow {
+  position: absolute;
+  bottom: 18px; right: 18px;
+  font-size: 18px;
+  color: var(--accent);
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.btn-coming-soon {
+  position: absolute;
+  bottom: 18px; right: 14px;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+  opacity: 0.4;
+}
+
+/* Subtle scan line on active hover */
+.cfg-btn.active::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,212,255,0.03) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+.cfg-btn.active:hover::before { opacity: 1; }
+
+/* ── Footer ── */
+.footer {
+  position: fixed;
+  bottom: 24px;
+  left: 0; right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  z-index: 10;
+  opacity: 0.5;
+  animation: fadeUp 1s 0.6s both;
+}
+.footer span { text-transform: uppercase; }
+.footer .sep { opacity: 0.3; }
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="vignette"></div>
+<div class="scanline"></div>
+<div class="corner tl"></div>
+<div class="corner tr"></div>
+<div class="corner bl"></div>
+<div class="corner br"></div>
+
+<div class="stage">
+
+  <div class="logo-block">
+    <div class="logo-eyebrow">MSFS Aircraft SDK</div>
+    <div class="logo-title">ProjectMax<span class="dot">.</span>CFG</div>
+    <div class="logo-subtitle">What are we working on today?</div>
+  </div>
+
+  <div class="btn-grid">
+
+    <!-- flight_model.cfg — ACTIVE -->
+    <button class="cfg-btn active" onclick="window.location.href='flight_model_editor.html'">
+      <div class="btn-icon">FM</div>
+      <div class="btn-tag">Physics</div>
+      <div class="btn-name">flight_model</div>
+      <div class="btn-desc">.cfg<br>Aero · Weight · Gear</div>
+      <div class="btn-arrow">→</div>
+    </button>
+
+    <!-- engines.cfg — DISABLED -->
+    <div class="cfg-btn disabled">
+      <div class="btn-lock">
+        <div class="lock-icon"></div>
+        <span>Soon</span>
+      </div>
+      <div class="btn-icon">EN</div>
+      <div class="btn-tag">Propulsion</div>
+      <div class="btn-name">engines</div>
+      <div class="btn-desc">.cfg<br>Thrust · Turbine · Prop</div>
+      <div class="btn-coming-soon">Coming soon</div>
+    </div>
+
+    <!-- systems.cfg — DISABLED -->
+    <div class="cfg-btn disabled">
+      <div class="btn-lock">
+        <div class="lock-icon"></div>
+        <span>Soon</span>
+      </div>
+      <div class="btn-icon">SY</div>
+      <div class="btn-tag">Avionics</div>
+      <div class="btn-name">systems</div>
+      <div class="btn-desc">.cfg<br>Hydraulics · Electrics</div>
+      <div class="btn-coming-soon">Coming soon</div>
+    </div>
+
+    <!-- cockpit.cfg — DISABLED -->
+    <div class="cfg-btn disabled">
+      <div class="btn-lock">
+        <div class="lock-icon"></div>
+        <span>Soon</span>
+      </div>
+      <div class="btn-icon">CK</div>
+      <div class="btn-tag">Interior</div>
+      <div class="btn-name">cockpit</div>
+      <div class="btn-desc">.cfg<br>Cameras · Eyepoint</div>
+      <div class="btn-coming-soon">Coming soon</div>
+    </div>
+
+  </div>
+</div>
+
+<div class="footer">
+  <span>ProjectMax</span>
+  <span class="sep">·</span>
+  <span>MSFS SDK Tools</span>
+  <span class="sep">·</span>
+  <span>Fokker F50</span>
+</div>
+
+</body>
+</html>

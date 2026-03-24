@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>flight_model.cfg — MSFS SDK Editor</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&family=Barlow+Condensed:wght@400;700&display=swap');
+  :root {
+    --bg:#0a0c0f;--panel:#0f1318;--panel2:#141920;--border:#1e2830;
+    --accent:#00d4ff;--accent2:#ff6b2b;--accent3:#39ff7c;
+    --text:#c8d8e8;--muted:#4a6070;--section-hdr:#0a1a28;
+    --input-bg:#080c10;--hover-row:#111820;--indexed-bg:#0c1520;--expand-bg:#080e14;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;font-size:14px;min-height:100vh;}
+  header{background:linear-gradient(180deg,#060a0e 0%,var(--panel) 100%);border-bottom:1px solid var(--accent);padding:14px 28px;display:flex;align-items:center;gap:20px;position:sticky;top:0;z-index:100;box-shadow:0 4px 40px #00d4ff18;}
+  .logo{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:20px;letter-spacing:3px;color:var(--accent);text-transform:uppercase;}
+  .logo span{color:var(--accent2);}
+  .file-badge{font-family:'Share Tech Mono',monospace;font-size:12px;background:#001820;border:1px solid var(--accent);color:var(--accent);padding:3px 10px;border-radius:2px;}
+  .header-actions{margin-left:auto;display:flex;gap:10px;}
+  .btn{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;letter-spacing:1.5px;text-transform:uppercase;padding:7px 18px;border:1px solid;cursor:pointer;border-radius:2px;transition:all .15s;}
+  .btn-primary{background:var(--accent);color:#000;border-color:var(--accent);}
+  .btn-primary:hover{background:#fff;}
+  .btn-ghost{background:transparent;color:var(--muted);border-color:var(--border);}
+  .btn-ghost:hover{color:var(--text);border-color:var(--muted);}
+  .btn-import{background:transparent;color:#a0c0d0;border-color:#2a4050;position:relative;overflow:hidden;}
+  .btn-import:hover{color:var(--accent);border-color:var(--accent);}
+  .btn-import input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+
+  /* Drop overlay */
+  .drop-overlay{display:none;position:fixed;inset:0;background:#000c;z-index:600;align-items:center;justify-content:center;flex-direction:column;gap:16px;}
+  .drop-overlay.active{display:flex;}
+  .drop-box{border:2px dashed var(--accent);border-radius:8px;padding:48px 64px;text-align:center;background:#00101a;pointer-events:none;}
+  .drop-box-title{font-family:'Barlow Condensed',sans-serif;font-size:28px;color:var(--accent);letter-spacing:3px;margin-bottom:8px;}
+  .drop-box-sub{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--muted);}
+
+  .app{display:flex;height:calc(100vh - 55px);}
+  .sidebar{width:220px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);overflow-y:auto;padding:12px 0;}
+  .sidebar-title{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;padding:0 14px 10px;}
+  .nav-item{padding:8px 14px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-size:13px;color:var(--muted);border-left:2px solid transparent;transition:all .15s;display:flex;align-items:center;gap:8px;}
+  .nav-item:hover{background:var(--hover-row);color:var(--text);}
+  .nav-item.active{color:var(--accent);border-left-color:var(--accent);background:#001a26;}
+  .nav-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;}
+  .search-bar{padding:10px 14px;border-bottom:1px solid var(--border);}
+  .search-bar input{width:100%;background:var(--input-bg);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:11px;padding:5px 10px;border-radius:2px;outline:none;}
+  .search-bar input:focus{border-color:var(--accent);}
+  .main{flex:1;overflow-y:auto;padding:20px 28px 60px;}
+  .section-card{margin-bottom:24px;border:1px solid var(--border);border-radius:4px;overflow:hidden;}
+  .section-header{background:var(--section-hdr);padding:10px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;}
+  .section-header:hover{background:#0a1e2e;}
+  .section-name{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--accent);letter-spacing:1px;}
+  .section-count{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted);margin-left:auto;}
+  .chevron{color:var(--muted);font-size:10px;transition:transform .2s;}
+  .chevron.open{transform:rotate(90deg);}
+  .section-body{background:var(--panel2);}
+
+  /* Normal KV row */
+  .cfg-row{display:grid;grid-template-columns:280px 1fr;border-bottom:1px solid var(--border);position:relative;}
+  .cfg-row:last-child{border-bottom:none;}
+  .cfg-row:hover{background:var(--hover-row);}
+  .key-cell{padding:7px 16px;font-family:'Share Tech Mono',monospace;font-size:12px;color:#7aa8c0;border-right:1px solid var(--border);display:flex;align-items:center;gap:6px;cursor:default;position:relative;}
+  .info-icon{width:14px;height:14px;border-radius:50%;background:var(--accent);color:#000;font-size:9px;font-family:'Barlow',sans-serif;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;opacity:0;transition:opacity .15s;pointer-events:none;}
+  .has-tooltip:hover .info-icon{opacity:1;}
+  .val-cell{padding:4px 10px;display:flex;align-items:center;}
+  .val-cell input{width:100%;background:transparent;border:1px solid transparent;color:var(--accent3);font-family:'Share Tech Mono',monospace;font-size:12px;padding:3px 7px;border-radius:2px;outline:none;transition:all .15s;}
+  .val-cell input:hover{border-color:var(--border);}
+  .val-cell input:focus{border-color:var(--accent);background:var(--input-bg);box-shadow:0 0 12px #00d4ff22;}
+  .val-cell input.modified{color:var(--accent2);border-color:#ff6b2b44;}
+  .val-cell input.long-val{font-size:10px;color:#5a8a6a;}
+  .val-cell input.long-val:focus{font-size:11px;color:var(--accent3);}
+  .comment-row{padding:5px 16px;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);background:#0c1016;border-bottom:1px solid var(--border);font-style:italic;}
+
+  /* Tooltip — only visible on hover, hidden when input focused */
+  .tooltip-box{display:none;position:absolute;left:16px;top:calc(100% + 4px);z-index:999;background:#030608;border:1px solid var(--accent);border-radius:4px;padding:10px 14px;width:380px;box-shadow:0 8px 40px #00d4ff30,0 2px 12px #000;pointer-events:none;animation:fadeIn .12s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:translateY(0);}}
+  .has-tooltip:hover .tooltip-box{display:block;}
+  .cfg-row:focus-within .tooltip-box{display:none!important;}
+  .tt-key{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--accent);margin-bottom:6px;}
+  .tt-desc{font-family:'Barlow',sans-serif;font-size:12.5px;color:#a0bcc8;line-height:1.55;}
+  .tt-unit{margin-top:7px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--accent2);border-top:1px solid var(--border);padding-top:6px;}
+
+  /* Indexed group */
+  .indexed-group{border-bottom:1px solid var(--border);}
+  .indexed-group:last-child{border-bottom:none;}
+  .indexed-header{display:grid;grid-template-columns:200px 1fr auto;align-items:center;padding:5px 10px 5px 16px;background:#0a1520;min-height:34px;}
+  .indexed-key{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--accent);}
+  .indexed-raw-val{font-family:'Share Tech Mono',monospace;font-size:10px;color:#3a7a5a;padding:0 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .indexed-controls{display:flex;gap:5px;flex-shrink:0;}
+  .ic-btn{font-family:'Share Tech Mono',monospace;font-size:11px;padding:3px 8px;border:1px solid;cursor:pointer;border-radius:2px;transition:all .12s;white-space:nowrap;background:transparent;}
+  .ic-btn-minus{color:#ff4444;border-color:#552222;}
+  .ic-btn-minus:hover{background:#ff4444;color:#000;}
+  .ic-btn-plus{color:var(--accent3);border-color:#225522;}
+  .ic-btn-plus:hover{background:var(--accent3);color:#000;}
+  .ic-btn-edit{color:var(--accent);border-color:#004455;}
+  .ic-btn-edit:hover{background:var(--accent);color:#000;}
+  .ic-btn-edit.active{background:var(--accent);color:#000;}
+
+  /* Expand panel */
+  .expand-panel{background:var(--expand-bg);border-top:1px solid #1a2a3a;padding:10px 16px 14px 32px;display:none;}
+  .expand-panel.open{display:block;}
+  .expand-field{display:grid;grid-template-columns:260px 1fr;align-items:start;margin-bottom:7px;gap:8px;}
+  .expand-label{font-family:'Barlow',sans-serif;font-size:11.5px;color:#7090a0;padding-top:5px;line-height:1.3;}
+  .expand-label .pos-hint{font-size:10px;color:#3a6070;display:block;margin-top:2px;line-height:1.4;}
+  .expand-input{background:var(--input-bg);border:1px solid var(--border);color:var(--accent3);font-family:'Share Tech Mono',monospace;font-size:12px;padding:4px 8px;border-radius:2px;outline:none;width:100%;transition:all .15s;}
+  .expand-input:focus{border-color:var(--accent);box-shadow:0 0 8px #00d4ff22;}
+  .expand-input.modified{color:var(--accent2);border-color:#ff6b2b44;}
+
+  /* Confirm dialog */
+  .confirm-overlay{display:none;position:fixed;inset:0;background:#000b;z-index:500;align-items:center;justify-content:center;}
+  .confirm-overlay.show{display:flex;}
+  .confirm-box{background:#0c1520;border:1px solid var(--accent);border-radius:4px;padding:24px 28px;max-width:380px;width:100%;box-shadow:0 20px 60px #000;}
+  .confirm-title{font-family:'Barlow Condensed',sans-serif;font-size:16px;color:var(--accent);margin-bottom:10px;letter-spacing:1px;}
+  .confirm-msg{font-size:13px;color:var(--text);margin-bottom:20px;line-height:1.5;}
+  .confirm-actions{display:flex;gap:10px;justify-content:flex-end;}
+
+  .statusbar{position:fixed;bottom:0;left:0;right:0;background:#000;border-top:1px solid var(--accent);padding:4px 20px;display:flex;gap:20px;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);z-index:200;}
+  .statusbar span{color:var(--accent);}
+  #mod-count{color:var(--accent2);}
+  ::-webkit-scrollbar{width:6px;}
+  ::-webkit-scrollbar-track{background:var(--panel);}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">projectmax<span>.</span>CFG</div>
+  <div class="file-badge" id="file-badge">flight_model.cfg Editor</div>
+  <div class="header-actions">
+    <button class="btn btn-import" title="Open a .cfg file from your computer">
+      ↑ Import .cfg
+      <input type="file" accept=".cfg,.txt,text/plain" onchange="handleFileInput(this)">
+    </button>
+    <button class="btn btn-ghost" onclick="resetAll()">Reset</button>
+    <button class="btn btn-primary" onclick="exportCFG()">Export .cfg</button>
+  </div>
+</header>
+
+<!-- Drag-and-drop overlay -->
+<div class="drop-overlay" id="drop-overlay">
+  <div class="drop-box">
+    <div class="drop-box-title">DROP .CFG HERE</div>
+    <div class="drop-box-sub">flight_model.cfg · engines.cfg · any MSFS cfg file</div>
+  </div>
+</div>
+<div class="app">
+  <nav class="sidebar">
+    <div class="sidebar-title">Sections</div>
+    <div class="search-bar"><input type="text" placeholder="Search keys…" id="search-input" oninput="filterKeys(this.value)"></div>
+    <div id="nav-list"></div>
+  </nav>
+  <main class="main" id="main-content"></main>
+</div>
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-title">CONFIRM REMOVAL</div>
+    <div class="confirm-msg" id="confirm-msg"></div>
+    <div class="confirm-actions">
+      <button class="btn btn-ghost" onclick="confirmNo()">Cancel</button>
+      <button class="btn" style="background:#ff4444;color:#000;border-color:#ff4444" onclick="confirmYes()">Remove</button>
+    </div>
+  </div>
+</div>
+<div class="statusbar">
+  <span id="mod-count">0</span> modified &nbsp;|&nbsp; hover key for SDK docs &nbsp;|&nbsp; click value to edit
+</div>
+<script>
+const TOOLTIPS={empty_weight:{desc:"Empty weight of the aircraft without fuel, payload or crew.",unit:"pounds"},max_gross_weight:{desc:"Maximum allowable takeoff gross weight. Structural limits are based on this.",unit:"pounds"},reference_datum_position:{desc:"Reference datum for all CG calculations (lon, lat, vert offset from model origin).",unit:"feet"},empty_weight_CG_position:{desc:"CG of the empty aircraft relative to reference datum. +X=forward, +Y=right, +Z=up.",unit:"feet (lon, lat, vert)"},CG_forward_limit:{desc:"Forward CG limit as a fraction of Mean Aerodynamic Chord. CG must stay aft of this.",unit:"fraction of MAC (0–1)"},CG_aft_limit:{desc:"Aft CG limit as a fraction of MAC. Exceeding this makes the aircraft unstable.",unit:"fraction of MAC (0–1)"},empty_weight_pitch_MOI:{desc:"Moment of inertia around the pitch axis for the empty aircraft.",unit:"slug·ft²"},empty_weight_roll_MOI:{desc:"Moment of inertia around the roll axis for the empty aircraft.",unit:"slug·ft²"},empty_weight_yaw_MOI:{desc:"Moment of inertia around the yaw axis for the empty aircraft.",unit:"slug·ft²"},empty_weight_coupled_MOI:{desc:"Cross-product moment of inertia. Represents inertial coupling between axes.",unit:"slug·ft²"},max_number_of_stations:{desc:"Total number of payload/weight stations defined.",unit:"integer"},static_pitch:{desc:"Pitch attitude when stationary on the ground. Only active when physics is off (e.g. hangar).",unit:"degrees (+=up, −=down)"},static_cg_height:{desc:"Height of CG above ground when at rest. Only active when physics is off.",unit:"feet"},gear_system_type:{desc:"Gear actuation type: 0=Electrical, 1=Hydraulic, 2=Pneumatic, 3=Manual, 4=None.",unit:"enum (0–4)"},tailwheel_lock:{desc:"Whether a tailwheel lock is available (1=YES / 0=NO).",unit:"boolean"},max_number_of_points:{desc:"Total contact point count. The sim expects exactly this many point.N entries (0 to N−1).",unit:"integer"},gear_locked_on_ground:{desc:"If 1, gear handle locks DOWN whenever aircraft is on the ground.",unit:"boolean"},gear_locked_above_speed:{desc:"Speed above which gear handle locks UP. Set to −1 to disable.",unit:"feet/second"},max_speed_full_steering:{desc:"Ground speed below which full nose-wheel steering deflection is available.",unit:"feet/second"},max_speed_decreasing_steering:{desc:"Ground speed above which nose-wheel steering has reduced to its minimum.",unit:"feet/second"},min_available_steering_angle_pct:{desc:"Minimum steering fraction always available at any speed.",unit:"fraction (0–1)"},max_speed_full_steering_castering:{desc:"Speed below which free-castering wheels have full angle authority.",unit:"feet/second"},max_speed_decreasing_steering_castering:{desc:"Speed above which free-castering wheel angle has reduced to minimum.",unit:"feet/second"},min_castering_angle:{desc:"Minimum angle a free-castering wheel can take.",unit:"radians"},max_castering_angle:{desc:"Maximum angle a free-castering wheel can take.",unit:"radians"},wing_area:{desc:"Total wing planform area. Reference area for all lift/drag calculations.",unit:"square feet"},wing_span:{desc:"Wing tip-to-tip span. Used for aspect ratio and induced drag.",unit:"feet"},wing_camber:{desc:"Wing camber coefficient controlling camber-dependent lift.",unit:"dimensionless"},wing_thickness_ratio:{desc:"Thickness-to-chord ratio. Affects transonic drag.",unit:"fraction"},wing_root_chord:{desc:"Chord length at the wing root.",unit:"feet"},wing_dihedral:{desc:"Wing dihedral angle. Positive = upswept tips = more roll stability.",unit:"degrees"},wing_incidence:{desc:"Wing incidence relative to fuselage datum. Positive tilts leading edge up.",unit:"degrees"},wing_twist:{desc:"Washout twist root to tip. Negative = reduced tip AoA = delayed tip stall.",unit:"degrees"},oswald_efficiency_factor:{desc:"Oswald span efficiency (e). 1.0 is perfect elliptical distribution. Typical: 0.7–0.9.",unit:"dimensionless (0–1)"},wing_winglets_flag:{desc:"Set to 1 if aircraft has winglets.",unit:"boolean"},wing_sweep:{desc:"Leading-edge sweep angle. Positive sweep helps high-speed performance.",unit:"degrees"},wing_pos_apex_lon:{desc:"Longitudinal position of the wing leading-edge apex.",unit:"feet"},wing_pos_apex_vert:{desc:"Vertical position of the wing leading-edge apex.",unit:"feet"},htail_area:{desc:"Total horizontal tail planform area (stabilizer + elevator).",unit:"square feet"},htail_span:{desc:"Horizontal tail tip-to-tip span.",unit:"feet"},htail_pos_lon:{desc:"Longitudinal position of the horizontal tail reference point.",unit:"feet"},htail_pos_vert:{desc:"Vertical position of the horizontal tail reference point.",unit:"feet"},htail_incidence:{desc:"Horizontal stabilizer incidence angle for neutral pitch trim.",unit:"degrees"},htail_sweep:{desc:"Leading-edge sweep of the horizontal tail.",unit:"degrees"},htail_thickness_ratio:{desc:"Thickness-to-chord ratio of the horizontal tail.",unit:"fraction"},vtail_area:{desc:"Total vertical tail planform area (fin + rudder).",unit:"square feet"},vtail_pos_lon:{desc:"Longitudinal position of the vertical tail reference point.",unit:"feet"},vtail_pos_vert:{desc:"Vertical position of the vertical tail reference point.",unit:"feet"},vtail_span:{desc:"Height of the vertical tail.",unit:"feet"},vtail_sweep:{desc:"Leading-edge sweep of the vertical tail.",unit:"degrees"},vtail_thickness_ratio:{desc:"Thickness-to-chord ratio of the vertical tail.",unit:"fraction"},fuselage_length:{desc:"Total fuselage length nose to tail.",unit:"feet"},fuselage_diameter:{desc:"Maximum fuselage cross-section diameter.",unit:"feet"},fuselage_center_pos:{desc:"Position of the fuselage aerodynamic center (lon, lat, vert).",unit:"feet"},elevator_area:{desc:"Total moving elevator surface area.",unit:"square feet"},aileron_area:{desc:"Total aileron surface area (both wings).",unit:"square feet"},rudder_area:{desc:"Total rudder surface area.",unit:"square feet"},elevator_up_limit:{desc:"Maximum upward elevator deflection.",unit:"degrees"},elevator_down_limit:{desc:"Maximum downward elevator deflection.",unit:"degrees"},aileron_up_limit:{desc:"Maximum upward aileron deflection (one side).",unit:"degrees"},aileron_down_limit:{desc:"Maximum downward aileron deflection (one side).",unit:"degrees"},rudder_limit:{desc:"Maximum rudder deflection either direction.",unit:"degrees"},rudder_trim_limit:{desc:"Maximum rudder trim deflection.",unit:"degrees"},elevator_trim_limit:{desc:"Maximum elevator trim deflection.",unit:"degrees"},elevator_trim_neutral:{desc:"Neutral position of the elevator trim.",unit:"degrees"},spoiler_limit:{desc:"Maximum spoiler/speedbrake deflection.",unit:"degrees"},spoilerons_available:{desc:"Set to 1 if spoilers can act as asymmetric roll control (spoilerons).",unit:"boolean"},spoiler_handle_available:{desc:"Whether a dedicated speedbrake handle exists in the cockpit.",unit:"boolean"},auto_spoiler_available:{desc:"Whether automatic ground spoilers deploy on landing.",unit:"boolean"},positive_g_limit_flaps_up:{desc:"Maximum positive load factor, flaps retracted.",unit:"G"},positive_g_limit_flaps_down:{desc:"Maximum positive load factor, flaps extended.",unit:"G"},negative_g_limit_flaps_up:{desc:"Maximum negative load factor, flaps retracted.",unit:"G"},negative_g_limit_flaps_down:{desc:"Maximum negative load factor, flaps extended.",unit:"G"},load_safety_factor:{desc:"Safety factor on structural load limits before damage.",unit:"multiplier"},fly_by_wire:{desc:"Enables fly-by-wire envelope protection.",unit:"boolean"},aileron_span_outboard:{desc:"Outboard spanwise position of aileron as fraction of half-span.",unit:"fraction (0–1)"},controls_reactivity_scalar:{desc:"Global scalar on control surface responsiveness.",unit:"multiplier"},lift_coef_pitch_rate:{desc:"Lift coefficient due to pitch rate (CLq). Lift lag as wing pitches.",unit:"per rad/s"},lift_coef_at_drag_zero:{desc:"Lift coefficient at zero drag. Baseline lift at design cruise.",unit:"dimensionless"},lift_coef_flaps:{desc:"Lift coefficient increment at full flap.",unit:"dimensionless"},drag_coef_zero_lift:{desc:"Zero-lift parasite drag coefficient (CD0). All non-lift-dependent drag.",unit:"dimensionless"},drag_coef_flaps:{desc:"Drag coefficient increment at full flap extension.",unit:"dimensionless"},drag_coef_gear:{desc:"Drag coefficient increment with gear down.",unit:"dimensionless"},drag_coef_spoilers:{desc:"Drag coefficient increment with spoilers fully deployed.",unit:"dimensionless"},pitch_moment_delta_elevator:{desc:"Pitching moment per unit elevator deflection (Cmδe). Primary pitch control.",unit:"per radian"},pitch_moment_pitch_damping:{desc:"Pitch damping coefficient (Cmq). Large negative = strong pitch stability.",unit:"per rad/s"},roll_moment_delta_aileron:{desc:"Rolling moment per unit aileron deflection (Clδa). Primary roll control.",unit:"per radian"},roll_moment_roll_damping:{desc:"Roll damping (Clp). Negative = stable.",unit:"per rad/s"},yaw_moment_delta_rudder:{desc:"Yawing moment per unit rudder deflection (Cnδr). Primary yaw control.",unit:"per radian"},yaw_moment_yaw_damping:{desc:"Yaw damping (Cnr). Negative = stable.",unit:"per rad/s"},yaw_moment_slip_angle:{desc:"Yawing moment due to sideslip (Cnβ). Positive = directional stability.",unit:"per radian"},aero_center_lift:{desc:"Position of aerodynamic center (neutral point) relative to reference datum.",unit:"feet"},compute_aero_center:{desc:"If 1, sim computes aero center from geometry. If 0, uses aero_center_lift value.",unit:"boolean"},modern_fm_only:{desc:"If 1, requires Modern flight model. Refuses to fly on Legacy FM.",unit:"boolean"},cruise_lift_scalar:{desc:"Global scalar on lift coefficient during cruise.",unit:"multiplier"},parasite_drag_scalar:{desc:"Scales all parasite (zero-lift) drag.",unit:"multiplier"},induced_drag_scalar:{desc:"Scales induced drag (drag due to lift).",unit:"multiplier"},elevator_effectiveness:{desc:"Scalar on elevator control power.",unit:"multiplier"},aileron_effectiveness:{desc:"Scalar on aileron roll control power.",unit:"multiplier"},rudder_effectiveness:{desc:"Scalar on rudder yaw control power.",unit:"multiplier"},pitch_stability:{desc:"Scalar on overall pitch stability.",unit:"multiplier"},roll_stability:{desc:"Scalar on roll/dihedral stability.",unit:"multiplier"},yaw_stability:{desc:"Scalar on directional/yaw stability.",unit:"multiplier"},pitch_gyro_stability:{desc:"Gyroscopic stability in pitch axis.",unit:"multiplier"},roll_gyro_stability:{desc:"Gyroscopic stability in roll axis.",unit:"multiplier"},p_factor_on_yaw:{desc:"How much P-factor (asymmetric prop thrust) affects yaw.",unit:"multiplier"},torque_on_roll:{desc:"How much engine torque reaction affects the roll axis.",unit:"multiplier"},stall_coef_at_min_weight:{desc:"Coefficient applied to stall speed at minimum weight.",unit:"dimensionless"},wingflex_scalar:{desc:"Magnitude of visual wing flex animation.",unit:"multiplier"},wing_engine_wash:{desc:"Additional lift from propeller slipstream over the wing.",unit:"multiplier"},full_flaps_stall_speed:{desc:"Stall speed in landing configuration, full flaps — VSO.",unit:"knots CAS"},flaps_up_stall_speed:{desc:"Stall speed in clean configuration, flaps up — VS1.",unit:"knots CAS"},cruise_speed:{desc:"Normal cruise airspeed used by AI and autopilot.",unit:"knots CAS"},max_indicated_speed:{desc:"Maximum indicated airspeed VMO. Exceeding triggers overspeed warning.",unit:"knots CAS"},max_flaps_extended:{desc:"Maximum speed with any flap extended — VFE.",unit:"knots CAS"},normal_operating_speed:{desc:"Normal operating speed VNO — max structural cruise speed.",unit:"knots CAS"},rotation_speed_min:{desc:"Minimum rotation speed VR used by AI during takeoff.",unit:"knots CAS"},climb_speed:{desc:"Recommended climb speed for AI and autopilot.",unit:"knots CAS"},cruise_alt:{desc:"Default cruise altitude used by AI when planning a flight.",unit:"feet MSL"},takeoff_speed:{desc:"Liftoff speed VLOF used by AI for takeoff.",unit:"knots CAS"},best_angle_climb_speed:{desc:"Best angle of climb speed VX.",unit:"knots CAS"},approach_speed:{desc:"Recommended final approach speed VREF.",unit:"knots CAS"},best_glide:{desc:"Best glide speed for max glide ratio with engines off.",unit:"knots CAS"},best_single_engine_rate_of_climb_speed:{desc:"Best rate of climb with one engine out — VYSE / Blue Line.",unit:"knots CAS"},minimum_control_speed:{desc:"Minimum control speed with critical engine inoperative — VMC.",unit:"knots CAS"},max_mach:{desc:"Maximum operating Mach number MMO.",unit:"Mach"},max_gear_extended:{desc:"Maximum speed with landing gear extended — VLE.",unit:"knots CAS"},cruise_mach:{desc:"Normal cruise Mach number for autopilot Mach hold.",unit:"Mach"},spawn_cruise_altitude:{desc:"Altitude aircraft spawns at when placed in-flight in cruise.",unit:"feet MSL"},spawn_descent_altitude:{desc:"Altitude aircraft spawns at when placed in-flight in descent.",unit:"feet MSL"},fuel_type:{desc:"Fuel type: 1=Avgas, 2=Jet-A, 3=Diesel.",unit:"enum"}};
+
+const SCHEMAS={
+  point:[
+    {label:"Contact Type",hint:"1=Wheel  2=Scrape Point  3=Skid  4=Float  5=Water Rudder  16=Ski  17=Propeller"},
+    {label:"Longitudinal Position (Z)",hint:"Relative to Datum Reference Point, in feet. Forward is positive."},
+    {label:"Lateral Position (X)",hint:"Relative to Datum Reference Point, in feet. Right is positive."},
+    {label:"Vertical Position (Y)",hint:"Relative to Datum Reference Point, in feet. Up is positive."},
+    {label:"Impact Damage Threshold",hint:"Crash velocity threshold, in feet per minute."},
+    {label:"Brake Type",hint:"0=None  1=Left gear brake  2=Right gear brake  3=Both gears"},
+    {label:"Wheel Radius",hint:"Wheel radius in feet. For scrape/skid points use a very small value (e.g. 0.0001)."},
+    {label:"Max Steering Angle",hint:"Maximum wheel steering deflection in degrees (−90 to +90). 0 = non-steerable."},
+    {label:"Static Compression",hint:"Static compression coefficient for computing spring reaction on the ground, in feet."},
+    {label:"Max/Static Compression Ratio",hint:"Max-to-static compression ratio (unitless). If set_max_compression=1, this is in feet instead."},
+    {label:"Damping Ratio",hint:"Ground reaction damping constant. 0.0 = undamped, 1.0 = critically damped."},
+    {label:"Extension Time",hint:"Time in seconds to fully extend gear / floats / skis."},
+    {label:"Retraction Time",hint:"Time in seconds to fully retract gear / floats / skis."},
+    {label:"Sound Type",hint:"0=Center Gear  1=Aux Gear  2=Left Gear  3=Right Gear  4=Fuselage Scrape  5=Left Wing Scrape  6=Right Wing Scrape  7=Aux1 Scrape  8=Aux2 Scrape  9=Tail Scrape"},
+    {label:"Retraction Speed Limit",hint:"Airspeed limit for gear retraction, in KIAS."},
+    {label:"Gear Damage Speed",hint:"Airspeed above which gear structure is damaged, in KIAS."},
+    {label:"Exponential Spring Constant",hint:"Spring exponent. Omit or set to 1 for standard linear spring behaviour."}
+  ],
+  station_load:[
+    {label:"Max Load Weight",hint:"Maximum load weight for this station, in pounds."},
+    {label:"Longitudinal Position",hint:"Fore/aft position relative to reference datum, in feet. Forward is positive."},
+    {label:"Lateral Position",hint:"Left/right position relative to reference datum, in feet. Right is positive."},
+    {label:"Vertical Position",hint:"Up/down position relative to reference datum, in feet. Up is positive."},
+    {label:"Station Name",hint:"Display name shown in the Weight & Balance screen. Use TT: prefix for localization."},
+    {label:"Default Load",hint:"Whether station is loaded by default: 0=empty, 1=loaded at max weight, 2=loaded at max weight (copilot)."}
+  ],
+  interactive_point:[
+    {label:"Type",hint:"Interactive point type code (0=Left main door, 1=Right main door, etc.)."},
+    {label:"Longitudinal Position",hint:"Longitudinal offset from reference datum, in feet."},
+    {label:"Lateral Position",hint:"Lateral offset from reference datum, in feet."},
+    {label:"Vertical Position",hint:"Vertical offset from reference datum, in feet."},
+    {label:"Sub-Type / Category",hint:"Sub-type code for the interactive element (door type, service hatch, etc.)."},
+    {label:"Param 6",hint:"Additional type-specific parameter."},
+    {label:"Param 7",hint:"Additional type-specific parameter."},
+    {label:"Heading",hint:"Orientation angle of the interaction in degrees (0–360)."},
+    {label:"Param 9",hint:"Additional parameter."},
+    {label:"Param 10",hint:"Additional parameter."},
+    {label:"Param 11",hint:"Additional parameter."},
+    {label:"Param 12",hint:"Additional parameter."},
+    {label:"Param 13",hint:"Additional parameter."},
+    {label:"Param 14",hint:"Additional parameter."}
+  ],
+  "flaps-position":[
+    {label:"Flap Angle",hint:"Deflection angle of the flap in degrees."},
+    {label:"Airspeed Limit (VFE)",hint:"Maximum airspeed for this flap setting, in KIAS."},
+    {label:"Lift Coefficient Delta",hint:"Lift coefficient increment at this flap position."},
+    {label:"Drag Coefficient Delta",hint:"Drag coefficient increment at this flap position."},
+    {label:"Pitch Moment Coefficient",hint:"Pitching moment change at this flap position."},
+    {label:"Param 6",hint:"Additional parameter."},
+    {label:"Param 7",hint:"Additional parameter."}
+  ]
+};
+
+// ── RAW CFG ──────────────────────────────────────────
+const RAW_CFG=`[VERSION]
+major=1
+minor=0
+
+[WEIGHT_AND_BALANCE]
+empty_weight=6200
+max_gross_weight=17968
+reference_datum_position=0,0,0
+empty_weight_CG_position=-0.13,0,-0.45
+CG_forward_limit=0.2
+CG_aft_limit=0.36
+empty_weight_pitch_MOI=18782
+empty_weight_roll_MOI=12419
+empty_weight_yaw_MOI=31388
+empty_weight_coupled_MOI=1600
+activate_cg_limit_based_on_mach=0
+activate_mach_limit_based_on_cg=0
+max_number_of_stations=11
+station_load.0=190,11.47,-1.4,-0.8,TT:Pilot,1
+station_load.1=190,11.47,1.4,-0.8,TT:Co-Pilot,2
+station_load.2=360,8.14,0,-0.3,TT:Row 1 (max. 3),0
+station_load.3=360,5.64,0,-0.3,TT:Row 2 (max. 3),0
+station_load.4=360,3.14,0,-0.3,TT:Row 3 (max. 3),0
+station_load.5=360,1.36,0,-0.3,TT:Row 4 (max. 2),0
+station_load.6=360,-1.87,0,-0.3,TT:Row 5 (max. 3),0
+station_load.7=360,-4.03,0,-0.3,TT:Row 6 (max. 2),0
+station_load.8=180,-8.44,0,-0.3,TT:Row 7 (max. 3),0
+station_load.9=120,-10.31,0,-0.3,TT:Row 8 (max. 3),0
+station_load.10=150,-13.11,0,-0.3,TT:Cargo Aft (max. 500lb),0
+
+[CONTACT_POINTS]
+static_pitch=-2
+static_cg_height=3.52
+gear_system_type=4
+tailwheel_lock=0
+max_number_of_points=11
+gear_locked_on_ground=1
+gear_locked_above_speed=-1
+max_speed_full_steering=20
+max_speed_decreasing_steering=30
+min_available_steering_angle_pct=0.2
+max_speed_full_steering_castering=30
+max_speed_decreasing_steering_castering=40
+min_castering_angle=0.05236
+max_castering_angle=3.141593
+point.0=1,14.236688,0,-7.655319,1500,0,1.5,55,1.0,1.5,0.7,0,0,0,300,300,2
+point.1=1,-4.33,-5.10,-7.65,1500,1,1.5,0,1.4,1.2,0.65,0,0,2,300,300,2
+point.2=1,-4.33,5.10,-7.65,1500,2,1.5,0,1.4,1.2,0.65,0,0,3,300,300,2
+point.3=1,-4.13,-6.7,-7.15,1500,1,1.5,0,1,1,1,0,0,3,300,300,2
+point.4=1,-4.13,6.7,-7.15,1500,2,1.5,0,1,1,1,0,0,3,300,300,2
+point.5=2,-2.537265,30.873852,2.780324,0,0,0.0001,0,1,0.0001,0,0,0,6,0,0,1
+point.6=2,-2.537265,-30.873852,2.780324,0,0,0.0001,0,1,0.0001,0,0,0,5,0,0,1
+point.7=2,-2.537265,0,2.780324,0,0,0.0001,0,1,0.0001,0,0,0,4,0,0,1
+point.8=3,-16.052492,2.234919,-3.806027,0,0,0.0001,0,1,0.0001,0,0,0,3,0,0,1
+point.9=2,17.095221,-0.000024,-2.590853,0,0,0.0001,0,1,0.0001,0,0,0,4,0,0,1
+point.10=2,-12.412424,-0.00002,-4.591973,0,0,0.0001,0,1,0.0001,0,0,0,4,0,0,1
+point.11=3,-16.052492,-2.234919,-3.806027,0,0,0.0001,0,1,0.0001,0,0,0,2,0,0,1
+point.12=2,-31.947472,0.000031,2.78859,0,0,0.0001,0,1,0.0001,0,0,0,9,0,0,1
+
+[FUEL_SYSTEM]
+Version=Latest
+Engine.1=Name:LH Engine#Index:1
+Engine.2=Name:RH Engine#Index:2
+Pump.1=Name:Left Aux Pump#Pressure:22#DestinationLine:Left Aux PumpToLH Valve#Type:EngineDriven#Index:1
+Pump.2=Name:Left Norm Pump#Pressure:22#DestinationLine:Left Norm PumpToLH Valve#Type:EngineDriven#Index:1
+Pump.3=Name:Right Aux Pump#Pressure:22#DestinationLine:Right Aux PumpToRH Valve#Type:EngineDriven#Index:2
+Pump.4=Name:Right Norm Pump#Pressure:22#DestinationLine:Right Norm PumpToRH Valve#Type:EngineDriven#Index:2
+Tank.1=Name:Left Outboard Tank#Title:Left Outboard Tank#Capacity:124#UnusableCapacity:3#Position:-2.75,-2.27,3#OutputOnlyLines:Left OutboardToLeft Collector#Priority:2
+Tank.2=Name:Left Inboard Tank#Title:Left Inboard Tank#Capacity:150#UnusableCapacity:7#Position:-2.75,-2.27,3#OutputOnlyLines:Left InboardToLeft Collector#Priority:1
+Tank.3=Name:Right Outboard Tank#Title:Right Outboard Tank#Capacity:124#UnusableCapacity:3#Position:-2.75,2.27,3#OutputOnlyLines:Right OutboardToRight Collector#Priority:2
+Tank.4=Name:Right Inboard Tank#Title:Right Inboard Tank#Capacity:150#UnusableCapacity:7#Position:-2.75,2.27,3#OutputOnlyLines:Right InboardToRight Collector#Priority:1
+Tank.5=Name:Left Collector Tank#Capacity:5#UnusableCapacity:0#Position:-2.75,-2.27,2.2#OutputOnlyLines:Left Collector TankToLeft Aux Pump,Left Collector TankToLeft Norm Pump#Priority:3
+Tank.6=Name:Right Collector Tank#Capacity:5#UnusableCapacity:0#Position:-2.75,2.27,2.2#OutputOnlyLines:Right Collector TankToRight Aux Pump,Right Collector TankToRight Norm Pump#Priority:3
+Valve.1=Name:Crossfeed Valve
+Valve.2=Name:LH Valve#DestinationLine:LH ValveToLH Engine
+Valve.3=Name:RH Valve#DestinationLine:RH ValveToRH Engine
+Line.1=Name:Left OutboardToLeft Collector#Source:Left Outboard Tank#Destination:Left Collector Tank#Volume:0.05#GravityBasedFuelFlow:70
+Line.2=Name:Left InboardToLeft Collector#Source:Left Inboard Tank#Destination:Left Collector Tank#Volume:0.05#GravityBasedFuelFlow:70
+Line.3=Name:Right OutboardToRight Collector#Source:Right Outboard Tank#Destination:Right Collector Tank#Volume:0.05#GravityBasedFuelFlow:70
+Line.4=Name:Right InboardToRight Collector#Source:Right Inboard Tank#Destination:Right Collector Tank#Volume:0.05#GravityBasedFuelFlow:70
+Line.5=Name:Left Collector TankToLeft Aux Pump#Source:Left Collector Tank#Destination:Left Aux Pump#Volume:0.05#GravityBasedFuelFlow:1
+Line.6=Name:Left Collector TankToLeft Norm Pump#Source:Left Collector Tank#Destination:Left Norm Pump#Volume:0.05#GravityBasedFuelFlow:1
+Line.7=Name:Left Aux PumpToLH Valve#Source:Left Aux Pump#Destination:LH Valve#Volume:0.05#GravityBasedFuelFlow:1
+Line.8=Name:Left Norm PumpToLH Valve#Source:Left Norm Pump#Destination:LH Valve#Volume:0.05#GravityBasedFuelFlow:1
+Line.9=Name:Right Collector TankToRight Aux Pump#Source:Right Collector Tank#Destination:Right Aux Pump#Volume:0.05#GravityBasedFuelFlow:1
+Line.10=Name:Right Collector TankToRight Norm Pump#Source:Right Collector Tank#Destination:Right Norm Pump#Volume:0.05#GravityBasedFuelFlow:1
+Line.11=Name:Right Aux PumpToRH Valve#Source:Right Aux Pump#Destination:RH Valve#Volume:0.05#GravityBasedFuelFlow:1
+Line.12=Name:Right Norm PumpToRH Valve#Source:Right Norm Pump#Destination:RH Valve#Volume:0.05#GravityBasedFuelFlow:1
+Line.13=Name:LH ValveToLH Engine#Source:LH Valve#Destination:LH Engine#Volume:0.03
+Line.14=Name:RH ValveToRH Engine#Source:RH Valve#Destination:RH Engine#Volume:0.03
+
+[AIRPLANE_GEOMETRY]
+wing_area=730
+wing_camber=1
+wing_thickness_ratio=0.03
+wing_span=60
+wing_root_chord=15
+wing_dihedral=1.5
+wing_incidence=2.2
+wing_twist=0
+oswald_efficiency_factor=0.7
+wing_winglets_flag=0
+wing_sweep=0
+wing_pos_apex_lon=10.3
+wing_pos_apex_vert=2.3
+htail_area=200
+htail_span=29
+htail_pos_lon=-26.5
+htail_pos_vert=3
+htail_incidence=0.14
+htail_sweep=0
+htail_thickness_ratio=0.015
+vtail_area=150
+vtail_pos_lon=-26
+vtail_pos_vert=5
+vtail_span=17
+vtail_sweep=10
+vtail_thickness_ratio=0.02
+fuselage_length=35
+fuselage_diameter=4
+fuselage_center_pos=-3.338482,0,-1.000002
+elevator_area=44
+aileron_area=27
+rudder_area=41
+elevator_up_limit=25
+elevator_down_limit=16
+aileron_up_limit=17.5
+aileron_down_limit=16
+rudder_limit=27
+rudder_trim_limit=10
+elevator_trim_limit=25
+elevator_trim_neutral=0
+spoiler_limit=40
+spoilerons_available=0
+aileron_to_spoileron_gain=0
+min_ailerons_for_spoilerons=0
+min_flaps_for_spoilerons=0
+spoiler_extension_time=3
+spoiler_handle_available=1
+auto_spoiler_available=0
+auto_spoiler_min_speed=0
+positive_g_limit_flaps_up=3.17
+positive_g_limit_flaps_down=3.17
+negative_g_limit_flaps_up=-1.5
+negative_g_limit_flaps_down=-1.5
+load_safety_factor=1.3
+aileron_to_rudder_scale=0
+flap_to_aileron_scale=0
+fly_by_wire=0
+elevator_elasticity_table=0:1,17:1,29:1,42:1.005,60:1
+aileron_elasticity_table=0:0.8,17:0.9,29:1,42:1.005,60:1,78:0.96,90:0.88
+rudder_elasticity_table=0:1,17:1,29:1,42:1.005,60:1,78:0.96,90:0.88
+elevator_trim_elasticity_table=0:1,17:1,29:1,42:1.005,60:1,78:0.96,90:0.88
+auto_spoiler_auto_retracts=0
+fly_by_wire_load_factor_normalize_bank=0
+aileron_to_elevator_gain=0
+spoiler_disabled_by_flaps=0
+aileron_span_outboard=0.5
+fly_by_wire_from_flaps=0
+controls_reactivity_scalar=1
+
+[AERODYNAMICS]
+lift_coef_pitch_rate=-6.054688
+lift_coef_daoa=0
+lift_coef_at_drag_zero=0.2
+lift_coef_at_drag_zero_flaps=0
+lift_coef_delta_elevator=0
+lift_coef_horizontal_incidence=0
+lift_coef_flaps=1.234
+lift_coef_spoilers=0
+drag_coef_zero_lift=0.042
+drag_coef_flaps=0.145508
+drag_coef_gear=0
+drag_coef_spoilers=0.1
+side_force_delta_rudder=-0.09375
+side_force_roll_rate=0.029785
+side_force_yaw_rate=0.147461
+side_force_slip_angle=-0.210449
+pitch_moment_delta_elevator=-1.025391
+pitch_moment_delta_trim=-0.3
+pitch_moment_pitch_damping=-41.015625
+pitch_moment_aoa_0=-0.048828
+pitch_moment_daoa=0.355469
+pitch_moment_horizontal_incidence=-0.031738
+pitch_moment_flaps=-0.02
+pitch_moment_gear=0
+pitch_moment_spoilers=0
+pitch_moment_delta_elevator_propwash=0
+pitch_moment_pitch_propwash=0
+roll_moment_delta_aileron=-0.126953
+roll_moment_roll_damping=-0.463867
+roll_moment_yaw_rate=-0.071289
+roll_moment_delta_rudder=-0.00293
+roll_moment_slip_angle=0.029297
+roll_moment_spoilers=0.054
+roll_moment_delta_aileron_trim_scalar=-0.005236
+yaw_moment_delta_rudder_trim_scalar=0.017453
+yaw_moment_roll=-0.054199
+yaw_moment_slip_angle=0.095703
+yaw_moment_delta_rudder=0.117188
+yaw_moment_delta_aileron=-0.084473
+yaw_moment_yaw_damping=-0.292969
+yaw_moment_delta_rudder_propwash=0
+yaw_moment_yaw_propwash=0
+compute_aero_center=0
+aero_center_lift=-3.5
+lift_coef_mach_table=0:1,0.2:1,0.4:1.0369,0.6:1.1018,0.8:1.2687,1:0.6,1.2:0.5,1.4:0.4
+lift_coef_ground_effect_mach_table=0.054:1.15,0.1:1.096,0.2:1.0576,0.3:1.036,0.4:1.024
+fuselage_lateral_cx=0.05
+lift_coef_air_spoilers=0
+drag_coef_air_spoilers=0
+
+[FLIGHT_TUNING]
+modern_fm_only=1
+cruise_lift_scalar=1
+parasite_drag_scalar=1
+induced_drag_scalar=1
+wing_engine_wash=0.2
+flap_induced_drag_scalar=1
+wingflex_scalar=1
+wingflex_offset=0
+predicted_moi_density_scalar_fuselage=1
+predicted_moi_density_scalar_wings=1
+elevator_effectiveness=0.9
+elevator_maxangle_scalar=0.8
+aileron_effectiveness=1.3
+rudder_effectiveness=1
+rudder_maxangle_scalar=1
+elevator_trim_effectiveness=1
+aileron_trim_effectiveness=1
+rudder_trim_effectiveness=1
+pitch_stability=1.2
+roll_stability=1.2
+yaw_stability=0.9
+pitch_gyro_stability=1.5
+roll_gyro_stability=1.5
+yaw_gyro_stability=1
+hi_alpha_on_roll=1
+hi_alpha_on_yaw=1
+p_factor_on_yaw=0.5
+torque_on_roll=1
+engine_wash_on_roll=0
+rudder_engine_wash_on_roll=0
+gyro_precession_on_roll=1
+gyro_precession_on_yaw=0.5
+gyro_precession_on_pitch=1
+stall_coef_at_min_weight=0.5
+elevator_chordangle_scalar=-1
+htail_maxangle_scalar=-1
+rudder_chordangle_scalar=-1
+vtail_maxangle_scalar=-1
+
+[REFERENCE SPEEDS]
+full_flaps_stall_speed=106.9
+flaps_stall_speed_ratio=0.763
+flaps_up_stall_speed=106.9
+cruise_speed=175
+max_indicated_speed=198
+max_flaps_extended=148
+normal_operating_speed=175
+airspeed_indicator_max=250
+rotation_speed_min=90
+climb_speed=150
+cruise_alt=9500
+takeoff_speed=95
+spawn_cruise_altitude=8500
+spawn_descent_altitude=1500
+best_angle_climb_speed=137
+approach_speed=118
+best_glide=95
+best_single_engine_rate_of_climb_speed=105
+minimum_control_speed=76
+max_mach=0.9
+max_gear_extended=161
+cruise_mach=0.9
+crossover_speed=0
+fly_assistant_use_dynamic_speeds=0
+
+[FLAPS.0]
+type=1
+system_type=1
+span-outboard=0.35
+extending-time=15
+altitude-limit=-1
+damaging-speed=125
+blowout-speed=140
+maneuvering_flaps=0
+lift_scalar=1
+drag_scalar=1
+pitch_scalar=1
+max_on_ground_position=3
+delay_between_flap_index=0
+flaps-position.0=0,-1,0,1,1,0,0
+flaps-position.1=10,115,0.65,1.2,1,0,0
+flaps-position.2=15,115,0.85,1.1,1,0,0
+flaps-position.3=40,115,0.95,1.05,1,0,0
+
+[FUEL]
+fuel_type=2
+presspt_fwd_Alpha0_pMAC=0.0
+presspt_fwd_AlphaStall_pMAC=0.1
+presspt_fwd_AlphaHiStall_pMAC=-0.25
+StallDef_StartRatio=0.9
+StallDef_EndRatio=1.4
+StallDef_CurvePower=1.1
+StallDef_minTransition=0.025
+StallDef_airflowdetachspeed=10
+StallDef_airflowattachspeed=10
+Stall_AileronAddIncidence=1
+Stall_TipAddIncidence=2.0
+Stall_TipAddTwist=5
+Stall_TipTwistScaleRatio=1.0
+
+[INTERACTIVE POINTS]
+number_of_interactive_points=7
+interactive_point.0=0.9,9.629,-2.678,1.94,0,0,0,85,0,0,0,0,0,0
+interactive_point.1=0.9,9.629,2.667,1.94,0,0,0,275,0,0,0,0,0,0
+interactive_point.2=0.9,-7.889,2.229,0.875,1,0,0,85,0,0,0,0,0,0
+interactive_point.3=0.15,-8.815,-2.58,1.08,0,0,0,275,0,0,0,0,0,0
+interactive_point.4=1,-10.6,-1.941,-2.27,4,0,0,0,0,0,0,0,0,0
+interactive_point.5=1,6.768,-2.505,-1.895,3,0,0,0,0,0,0,0,0,0
+interactive_point.6=1,-3.81,-2.452,-1.925,3,0,0,0,0,0,0,0,0,0`;
+
+// ── State ──
+let parsedSections=[];
+let confirmCB=null;
+
+function getBase(key){const m=key.match(/^(.+?)\.(\d+)$/i);return m?m[1].toLowerCase():null;}
+
+function parseCFG(text){
+  const secs=[];let cur=null;
+  for(const raw of text.split('\n')){
+    const line=raw.trim();if(!line)continue;
+    const sm=line.match(/^\[(.+?)\]$/);
+    if(sm){cur={name:sm[1],entries:[]};secs.push(cur);continue;}
+    if(!cur)continue;
+    if(line.startsWith(';')){cur.entries.push({type:'comment',text:line});continue;}
+    const ei=line.indexOf('=');if(ei===-1)continue;
+    const key=line.substring(0,ei).trim();
+    let rest=line.substring(ei+1);let comment='';
+    const si=rest.indexOf(';');
+    if(si!==-1){comment=rest.substring(si+1).trim();rest=rest.substring(0,si).trim();}else rest=rest.trim();
+    cur.entries.push({type:'kv',key,value:rest,comment,originalValue:rest});
+  }
+  return secs;
+}
+
+function buildUI(sections){
+  const nav=document.getElementById('nav-list');
+  const main=document.getElementById('main-content');
+  nav.innerHTML='';main.innerHTML='';
+  sections.forEach((sec,si)=>{
+    const ni=document.createElement('div');
+    ni.className='nav-item';ni.dataset.section=sec.name;
+    ni.innerHTML=`<span class="nav-dot"></span>${sec.name}`;
+    ni.onclick=()=>{document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));ni.classList.add('active');document.getElementById('sec-'+si).scrollIntoView({behavior:'smooth',block:'start'});};
+    nav.appendChild(ni);
+    const card=document.createElement('div');card.className='section-card';card.id='sec-'+si;
+    const kvCount=sec.entries.filter(e=>e.type==='kv').length;
+    const hdr=document.createElement('div');hdr.className='section-header';
+    hdr.innerHTML=`<span class="chevron open">▶</span><span class="section-name">[${sec.name}]</span><span class="section-count">${kvCount} params</span>`;
+    hdr.onclick=()=>{const b=card.querySelector('.section-body');const ch=hdr.querySelector('.chevron');const hidden=b.style.display==='none';b.style.display=hidden?'':'none';ch.classList.toggle('open',hidden);};
+    card.appendChild(hdr);
+    const body=document.createElement('div');body.className='section-body';
+    renderBody(body,sec,si);
+    card.appendChild(body);main.appendChild(card);
+  });
+  nav.querySelector('.nav-item')?.classList.add('active');
+  setupIO();
+}
+
+function renderBody(body,sec,si){
+  body.innerHTML='';
+  let i=0;
+  while(i<sec.entries.length){
+    const e=sec.entries[i];
+    if(e.type==='comment'){const r=document.createElement('div');r.className='comment-row';r.textContent=e.text;body.appendChild(r);i++;continue;}
+    const base=getBase(e.key);
+    if(base){
+      // collect consecutive same-base entries
+      const grp=[];let j=i;
+      while(j<sec.entries.length){const e2=sec.entries[j];if(e2.type==='kv'&&getBase(e2.key)===base){grp.push({entry:e2,idx:j});j++;}else break;}
+      renderIndexedGroup(body,base,grp,sec,si);
+      i=j;
+    }else{renderKVRow(body,e,sec,si);i++;}
+  }
+}
+
+function renderKVRow(body,entry,sec,si){
+  const row=document.createElement('div');row.className='cfg-row';row.dataset.key=entry.key;
+  const tt=TOOLTIPS[entry.key]||TOOLTIPS[entry.key.toLowerCase()];
+  if(tt)row.classList.add('has-tooltip');
+  const kc=document.createElement('div');kc.className='key-cell';
+  kc.innerHTML=`<span class="info-icon">i</span>${entry.key}`;
+  const vc=document.createElement('div');vc.className='val-cell';
+  const inp=document.createElement('input');inp.type='text';inp.value=entry.value;
+  if(entry.value.length>40)inp.classList.add('long-val');
+  inp.oninput=ev=>{entry.value=ev.target.value;ev.target.classList.toggle('modified',ev.target.value!==entry.originalValue);updateModCount();};
+  vc.appendChild(inp);
+  if(tt){const tb=document.createElement('div');tb.className='tooltip-box';tb.innerHTML=`<div class="tt-key">${entry.key}</div><div class="tt-desc">${tt.desc}</div>${tt.unit?`<div class="tt-unit">Unit: ${tt.unit}</div>`:''}`;kc.appendChild(tb);}
+  row.appendChild(kc);row.appendChild(vc);body.appendChild(row);
+}
+
+function renderIndexedGroup(body,base,grp,sec,si){
+  const schema=SCHEMAS[base]||null;
+  grp.forEach(({entry})=>{
+    const wrap=document.createElement('div');wrap.className='indexed-group';wrap.dataset.base=base;
+    const hdr=document.createElement('div');hdr.className='indexed-header';
+    const keySpan=document.createElement('div');keySpan.className='indexed-key';keySpan.textContent=entry.key;
+    const rawEl=document.createElement('div');rawEl.className='indexed-raw-val';rawEl.textContent=entry.value;
+    const ctrls=document.createElement('div');ctrls.className='indexed-controls';
+    const bm=document.createElement('button');bm.className='ic-btn ic-btn-minus';bm.textContent='−';bm.title='Remove';
+    bm.onclick=()=>askRemove(entry.key,sec,si);
+    const bp=document.createElement('button');bp.className='ic-btn ic-btn-plus';bp.textContent='+';bp.title='Duplicate below';
+    bp.onclick=()=>dupEntry(entry,sec,si);
+    ctrls.appendChild(bm);ctrls.appendChild(bp);
+    if(schema){
+      const be=document.createElement('button');be.className='ic-btn ic-btn-edit';be.textContent='Edit per value';
+      be.onclick=()=>{const p=wrap.querySelector('.expand-panel');const open=p.classList.toggle('open');be.classList.toggle('active',open);};
+      ctrls.appendChild(be);
+    }
+    hdr.appendChild(keySpan);hdr.appendChild(rawEl);hdr.appendChild(ctrls);
+    wrap.appendChild(hdr);
+    if(schema){
+      const panel=document.createElement('div');panel.className='expand-panel';
+      buildExpandPanel(panel,entry,schema,rawEl);
+      wrap.appendChild(panel);
+    }
+    body.appendChild(wrap);
+  });
+}
+
+function buildExpandPanel(panel,entry,schema,rawEl){
+  panel.innerHTML='';
+  // Split carefully — commas inside values (like TT:Row 1 (max. 3)) are fine since they're the 5th field
+  const parts=entry.value.split(',');
+  const live=[...parts];
+  const maxFields=Math.max(schema.length,parts.length);
+  for(let idx=0;idx<maxFields;idx++){
+    const field=schema[idx]||{label:`Param ${idx+1}`,hint:`Value at position [${idx}].`};
+    const row=document.createElement('div');row.className='expand-field';
+    const lbl=document.createElement('div');lbl.className='expand-label';
+    lbl.innerHTML=`${field.label}<span class="pos-hint">[${idx}] ${field.hint}</span>`;
+    const inp=document.createElement('input');inp.className='expand-input';inp.type='text';
+    inp.value=live[idx]!==undefined?live[idx].trim():'';
+    inp.oninput=()=>{
+      live[idx]=inp.value;
+      const newVal=live.join(',');
+      entry.value=newVal;
+      rawEl.textContent=newVal;
+      inp.classList.toggle('modified',newVal!==entry.originalValue);
+      updateModCount();
+    };
+    row.appendChild(lbl);row.appendChild(inp);panel.appendChild(row);
+  }
+}
+
+function dupEntry(entry,sec,si){
+  const base=getBase(entry.key);if(!base)return;
+  const baseEntries=sec.entries.filter(e=>e.type==='kv'&&getBase(e.key)===base);
+  const nextIdx=baseEntries.length;
+  let lastPos=-1;
+  for(let i=sec.entries.length-1;i>=0;i--){if(sec.entries[i].type==='kv'&&getBase(sec.entries[i].key)===base){lastPos=i;break;}}
+  const newEntry={type:'kv',key:`${base}.${nextIdx}`,value:entry.value,comment:entry.comment,originalValue:''};
+  sec.entries.splice(lastPos+1,0,newEntry);
+  rebuildSection(si);updateModCount();
+}
+
+function askRemove(keyName,sec,si){
+  document.getElementById('confirm-msg').textContent=`Remove "${keyName}" and renumber the remaining entries?`;
+  document.getElementById('confirm-overlay').classList.add('show');
+  confirmCB=()=>doRemove(keyName,sec,si);
+}
+function doRemove(keyName,sec,si){
+  const base=getBase(keyName);
+  const idx=sec.entries.findIndex(e=>e.type==='kv'&&e.key===keyName);
+  if(idx===-1)return;
+  sec.entries.splice(idx,1);
+  let n=0;
+  for(const e of sec.entries){if(e.type==='kv'&&getBase(e.key)===base){e.key=`${base}.${n}`;n++;}}
+  rebuildSection(si);updateModCount();
+}
+function confirmYes(){document.getElementById('confirm-overlay').classList.remove('show');if(confirmCB){confirmCB();confirmCB=null;}}
+function confirmNo(){document.getElementById('confirm-overlay').classList.remove('show');confirmCB=null;}
+
+function rebuildSection(si){
+  const sec=parsedSections[si];
+  const body=document.getElementById('sec-'+si).querySelector('.section-body');
+  renderBody(body,sec,si);
+}
+
+function updateModCount(){
+  let c=0;
+  for(const sec of parsedSections)for(const e of sec.entries)if(e.type==='kv'&&e.value!==e.originalValue)c++;
+  document.getElementById('mod-count').textContent=c;
+}
+
+function resetAll(){
+  for(const sec of parsedSections)for(const e of sec.entries)if(e.type==='kv')e.value=e.originalValue;
+  buildUI(parsedSections);
+}
+
+function exportCFG(){
+  let out='';
+  for(const sec of parsedSections){
+    out+=`[${sec.name}]\n`;
+    for(const e of sec.entries){
+      if(e.type==='comment')out+=e.text+'\n';
+      else out+=`${e.key}=${e.value}${e.comment?' ; '+e.comment:''}\n`;
+    }
+    out+='\n';
+  }
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([out],{type:'text/plain'}));a.download='flight_model.cfg';a.click();
+}
+
+function filterKeys(q){
+  q=q.toLowerCase().trim();
+  document.querySelectorAll('.cfg-row,.indexed-group').forEach(r=>{
+    if(!q){r.style.display='';return;}
+    r.style.display=(r.dataset.key||r.dataset.base||'').toLowerCase().includes(q)?'':'none';
+  });
+}
+
+function setupIO(){
+  const obs=new IntersectionObserver(entries=>{
+    entries.forEach(en=>{
+      if(en.isIntersecting){
+        const si=parseInt(en.target.id.replace('sec-',''));
+        const sec=parsedSections[si];
+        if(sec)document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.section===sec.name));
+      }
+    });
+  },{threshold:0.1});
+  document.querySelectorAll('.section-card').forEach(c=>obs.observe(c));
+}
+
+parsedSections=parseCFG(RAW_CFG);
+buildUI(parsedSections);
+
+// ── File import ──────────────────────────────────────
+function handleFileInput(input){
+  const file=input.files[0];
+  if(!file)return;
+  readCFGFile(file);
+  input.value=''; // reset so same file can be re-imported
+}
+
+function readCFGFile(file){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const text=e.target.result;
+    loadCFGText(text,file.name);
+  };
+  reader.readAsText(file);
+}
+
+function loadCFGText(text,filename){
+  parsedSections=parseCFG(text);
+  buildUI(parsedSections);
+  document.getElementById('file-badge').textContent=filename||'imported.cfg';
+  document.getElementById('mod-count').textContent='0';
+}
+
+// ── Drag and drop ────────────────────────────────────
+const overlay=document.getElementById('drop-overlay');
+let dragCounter=0;
+
+document.addEventListener('dragenter',e=>{
+  if(e.dataTransfer.types.includes('Files')){
+    dragCounter++;
+    overlay.classList.add('active');
+    e.preventDefault();
+  }
+});
+document.addEventListener('dragleave',e=>{
+  dragCounter--;
+  if(dragCounter<=0){dragCounter=0;overlay.classList.remove('active');}
+});
+document.addEventListener('dragover',e=>e.preventDefault());
+document.addEventListener('drop',e=>{
+  e.preventDefault();
+  dragCounter=0;
+  overlay.classList.remove('active');
+  const file=e.dataTransfer.files[0];
+  if(file)readCFGFile(file);
+});
+</script>
+</body>
+</html>
